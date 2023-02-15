@@ -3,19 +3,28 @@ from function import Function
 from namespace import Namespace
 from probe import Probe
 from injector import Injector
+from utils import timestamp
+import json
+import os
 
 class Environment:
     """A Simulation Environment. An Environment is the global
     container for Simulation state. It also containers functions for
     ticking the simulation forward."""
 
-    def __init__(self):
+    def __init__(self, trace_path = './trace'):
         self.time = 0;
         self.state = Namespace()
         self.functions = Namespace()
         self.root = Namespace()
         self.probes = []
         self.injectors = {}
+        self.trace = False
+        self.init_timestamp = timestamp()
+        self.trace_path = trace_path
+
+        if not os.path.exists(self.trace_path):
+            os.makedirs(self.trace_path)
 
     def tick(self):
         """The tick function iterates the environment by one
@@ -23,19 +32,24 @@ class Environment:
         discrete iteration of the environment.
 
         During an iteration, the environment:
-           1) Iterates through the functions.
-           2) Gets state and connected states for the funcions.
-           3) Executes the functions with the states.
-           4) Calls the probes with the values.
-           5) Adds injected values into states."""
+           1) If trace is enabled, traces states and functions.
+           2) Iterates through the functions.
+           3) Gets state and connected states for the functions.
+           4) Executes the functions with the states.
+           5) Calls the probes with the values.
+           6) Adds injected values into states."""
+
+        if self.trace:
+            self.write_trace()
 
         self.time = self.time + 1
 
         fun_iterator = self.functions.iterator()
 
         for f in fun_iterator:
-            namespace = f.get_namespace()
-            connected_namespaces = f.get_connected_namespaces()
+            function = f.item
+            namespace = function.get_namespace()
+            connected_namespaces = function.get_connected_namespaces()
 
             state = self.state.get(namespace)
             state = state.pop()
@@ -46,7 +60,7 @@ class Environment:
 
             connected_states_copy = copy_all_state_nodes(connected_states)
 
-            f.invoke(state, connected_states_copy)
+            function.invoke(state, connected_states_copy)
 
         for p in self.probes:
             p.invoke()
@@ -134,3 +148,23 @@ class Environment:
         self.injectors[injector_key] = i
 
         return i
+
+    def to_json(self):
+        form = []
+        form.append(self.state.to_kvp())
+        form.append(self.functions.to_kvp())
+
+        return json.dumps(form, sort_keys=True, indent=4);
+
+    def write_trace(self):
+        filename = '{0}-tick-{1}.json'.format(self.init_timestamp, self.time)
+        file_path = '{0}/{1}'.format(self.trace_path, filename)
+        with open(file_path, 'w') as f:
+            f.write(self.to_json())
+
+
+    def start_trace(self):
+        self.trace = True
+
+    def stop_trace(self):
+        self.trace = False

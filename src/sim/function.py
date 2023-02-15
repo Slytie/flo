@@ -16,3 +16,11 @@ class Function:
 
     def get_connected_namespaces(self):
         return self.connected_namespaces
+
+    def to_kvp(self):
+        form = {}
+        form['type'] = 'Function';
+        form['function'] = self.function.__name__;
+        form['namespace'] = self.namespace;
+        form['connected_namespaces'] = self.connected_namespaces
+        return form

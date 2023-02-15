@@ -1,3 +1,22 @@
+import json
+
+def is_jsonable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+def has_kvp_method(o):
+    method = getattr(o, 'to_kvp', None)
+    if method == None:
+        return False
+
+    if callable(method):
+        return True
+
+    return False
+
 class Namespace:
     """A Namespace represents a naming heirachy, starting with an
     empty root. For example DNS is a namespace heirachy:
@@ -9,8 +28,9 @@ class Namespace:
     contain a single Python Object attached to it."""
 
 
-    def __init__(self, name=''):
+    def __init__(self, name='', parent=None):
         self.name = name
+        self.parent = parent
         self.children = {}
         self.item = None
 
@@ -37,7 +57,7 @@ class Namespace:
         subpath, remainder = self.tokenize_path(path)
 
         if subpath not in self.children:
-            self.children[subpath] = Namespace(subpath)
+            self.children[subpath] = Namespace(subpath, self)
 
         self.children[subpath].insert(remainder, item)
 
@@ -70,10 +90,39 @@ class Namespace:
             yield from c.__next_item()
 
         if self.item != None:
-            yield self.item
+            yield self
 
 
     def iterator(self):
         """Child first traversal of namespace tree."""
 
         yield from self.__next_item()
+
+    def to_kvp_item(self):
+        form = {}
+        form['path'] = self.canonical_path()
+        if is_jsonable(self.item):
+            form['item'] = self.item
+        elif has_kvp_method(self.item):
+            form['item'] = self.item.to_kvp();
+        else:
+            form['item'] = '<not-serializable>'
+
+        return form;
+
+    def to_kvp(self):
+        ns_list = []
+        iterator = self.iterator()
+        for i in iterator:
+            ns_list.append(i.to_kvp_item())
+
+        return ns_list;
+
+    def canonical_path(self):
+        path = self.name
+        parent = self.parent
+        while parent != None:
+            path = "{0}.{1}".format(parent.name, path)
+            parent = parent.parent
+
+        return path.lstrip('.')

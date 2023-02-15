@@ -37,3 +37,9 @@ class StateNode:
         clone.values = values
 
         return clone
+
+    def to_kvp(self):
+        form = {}
+        form['type'] = 'StateNode';
+        form['values'] = self.values
+        return form

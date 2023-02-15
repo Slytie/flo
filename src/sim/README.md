@@ -20,6 +20,12 @@ e.tick()
 
 The `tick` method represents a forward step of the Environment and is not related to time. Time itself can be simulated within the Environment using the simulation functions.
 
+The Environment can be made to trace the internal state (that is the StateNode namespace and the Function namespace) by calling the `start_trace` method. It can be stopped by using the `stop_trace` method. By default the environment will trace each tick to a directory by the name `./trace`. This can be overriden by passing the first argument into environment with a custom trace location:
+
+```python
+e = Environment('/some/other/path')
+```
+
 
 ### Namespaces
 
@@ -121,10 +127,11 @@ Each *{namespace, key}* pair may have a unique injector. If the same *{namespace
 
 When `tick` is called on an `Environment` object it goes through the following steps in order:
 
-1. Iterates through the functions.
-2. Gets state and connected states for the funcions using namespaces.
-3. Executes the functions with the states.
-4. Calls the probes with the values.
-5. Adds injected values into states.
+1. If trace is enabled, traces the state to the trace directory.
+2. Iterates through the functions.
+3. Gets state and connected states for the funcions using namespaces.
+4. Executes the functions with the states.
+5. Calls the probes with the values.
+6. Adds injected values into states.
 
 It's important to remember that `Probes` are called before `Injector` values are injected back into the environment. This means that state can be read by `Probes` and action taken through `Injectors`.

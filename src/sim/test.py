@@ -37,8 +37,12 @@ class TestEnvironment(unittest.TestCase):
 
         setup_time_testcase(e)
 
+        e.start_trace()
         for i in range(0, 100):
             e.tick()
+        e.stop_trace()
+
+        
 
     def test_probes(self):
         e = Environment()
@@ -81,7 +85,7 @@ class TestNamespaces(unittest.TestCase):
         self.assertEqual(item, staff.pop())
 
         all_weapons = root.get('weapons')
-        self.assertEqual(2, len(all_weapons))
+        self.assertEqual(2, len(all_weapons))                
 
 
 if __name__ == '__main__':
