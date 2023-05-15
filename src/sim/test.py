@@ -42,7 +42,7 @@ class TestEnvironment(unittest.TestCase):
             e.tick()
         e.stop_trace()
 
-        
+
 
     def test_probes(self):
         e = Environment()
@@ -70,6 +70,26 @@ class TestEnvironment(unittest.TestCase):
         e.tick()
 
 
+class TestGraph(unittest.TestCase):
+
+    def test_graph_shortest_path(self):
+        g = Graph(
+            [ (1, {'state': 'start'}),
+              (2, {'thing': 'potato'}),
+              (3, {'action': 'cut'}),
+              (4, {'action': 'boil'}) ],
+
+            [ (1, 2, {'cost': 1}),
+              (2, 3, {'cost': 1}),
+              (3, 4, {'cost': 2.4}) ]
+            )
+
+        g.add_node(5, {'action': 'eat'})
+        g.add_edge(4, 5, {'cost': 2})
+
+        path = g.lowest_cost_path_by('cost', 1, 5)
+        print(path)
+
 
 class TestNamespaces(unittest.TestCase):
 
@@ -85,7 +105,7 @@ class TestNamespaces(unittest.TestCase):
         self.assertEqual(item, staff.pop())
 
         all_weapons = root.get('weapons')
-        self.assertEqual(2, len(all_weapons))                
+        self.assertEqual(2, len(all_weapons))
 
 
 if __name__ == '__main__':
