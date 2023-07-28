@@ -204,3 +204,27 @@ def l(a_j, beta_j, S):
     return  1 / (np.exp(x) - 1)
 ```
 
+### Bayesian associative perception
+
+The simulation environment includes various namespaces, state nodes, functions, probes, and injectors to simulate a dynamic system. 
+
+One of the functions, `func_bayesian_probability_batch`, calculates the Bayesian probabilities for a batch of sensorial vectors V and classifies them based on the form with the highest Bayesian probability.
+
+This function is added to the environment as follows:
+
+```python
+# Add the function to the environment
+sBayesian = e.add_function(bayesian_associative_perception, 'statistics.bayesian', ['statistics.paradigm_activation', 'statistics.potentiality_given_form', 'statistics.form_given_context', 'statistics.means', 'statistics.covariances', 'statistics.weights', 'statistics.distance_cutoff', 'statistics.weights_activation'])
+
+# Initialize the state values
+sBayesian.set('V', [np.random.rand(10) for _ in range(100)])  # 100 sensorial vectors
+sBayesian.set('paradigm_activation', np.random.rand(10))  # paradigm activation states for each form
+sBayesian.set('P_potentiality_given_form', [np.random.normal(np.sqrt(5), 1) for _ in range(10)])  # P(potentiality|form) for each form
+sBayesian.set('P_form_given_context', np.random.rand(10))  # P(form|context) for each form
+sBayesian.set('means', np.random.rand(10, 10))  # means of the GMM
+sBayesian.set('covariances', np.array([np.eye(10) for _ in range(10)]))  # covariances of the GMM
+sBayesian.set('weights', np.ones(10) / 10)  # weights of the GMM
+sBayesian.set('distance_cutoff', 2.0)  # distance cutoff
+sBayesian.set('weights_activation', np.array([0.3, 0.4, 0.3]))  # weights for updating the paradigm activation state
+```
+
