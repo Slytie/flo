@@ -1,0 +1,55 @@
+def perceptual_prediction(state, connected_states):
+    """
+    Calculate the Bayesian probabilities for a batch of sensorial vectors V and classify them based on the form with the highest Bayesian probability.
+
+    Args:
+        state (dict): A dictionary representing the state of the system. The keys should include 'V', 'paradigm_activation',
+            'P_potentiality_given_form', 'P_form_given_context', 'means', 'covariances', 'weights', 'distance_cutoff', and 'weights_activation'.
+        connected_states (list): A list of states that are connected to the current state. Not used in this function.
+
+    Modifies:
+        state: Adds the key 'bayesian_probabilities' to the state dictionary with the calculated Bayesian probabilities as its value.
+
+    Returns:
+        None
+    """
+    # Extract parameters from the state dictionary
+    V = state['V']  # batch of sensorial vectors
+    A_t = state['paradigm_activation']  # current paradigm activation states for each form
+    P_potentiality_given_form = state['P_potentiality_given_form']  # P(potentiality|form) for each form
+    P_form_given_context = state['P_form_given_context']  # P(form|context) for each form
+    means = state['means']  # means of the GMM
+    covariances = state['covariances']  # covariances of the GMM
+    weights = state['weights']  # weights of the GMM
+    distance_cutoff = state['distance_cutoff']  # distance cutoff
+    w1, w2, w3 = state['weights_activation']  # weights for updating the paradigm activation state
+
+    bayesian_probabilities = []
+    for v in V:
+        # Calculate Bayesian probability for each form
+        P_H_E_form = []
+        for i in range(len(means)):
+            # Update paradigm activation state
+            A_t_plus_1 = w1 * A_t[i] + w2 * P_form_given_context[i] + w3 * P_potentiality_given_form[i]
+            state['paradigm_activation'][i] = A_t_plus_1
+
+            # Prior probability
+            P_H = A_t_plus_1
+
+            # Likelihood
+            P_E_H = multivariate_normal.pdf(v, mean=means[i], cov=covariances[i])
+
+            # Total probability of evidence
+            P_E = np.sum([weight * multivariate_normal.pdf(v, mean=mean, cov=cov) for weight, mean, cov in zip(weights, means, covariances) if np.linalg.norm(v - mean) <= distance_cutoff])
+
+            # Bayes' theorem
+            P_H_E = P_E_H * P_H / P_E
+
+            P_H_E_form.append(P_H_E)
+
+        # Classify the vector based on the form with the highest Bayesian probability
+        classification = np.argmax(P_H_E_form)
+        bayesian_probabilities.append((v, classification))
+
+    # Update the state dictionary with the calculated Bayesian probabilities
+    state['bayesian_probabilities'] = bayesian_probabilities
