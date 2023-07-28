@@ -94,3 +94,39 @@ def softmax_function(state, connected_states):
 
     # Update the state
     state.set('state_vector', softmax_vector.tolist())
+
+from sklearn.mixture import GaussianMixture
+
+def generate_test_gmm_and_data(n_components=3, random_state=0):
+    """
+    Generate a test Gaussian Mixture Model and test data.
+
+    Args:
+        n_components (int, optional): The number of mixture components. Defaults to 3.
+        random_state (int, optional): Determines random number generation for reproducibility. Defaults to 0.
+
+    Returns:
+        gmm (GaussianMixture): The generated Gaussian Mixture Model.
+        state (dict): A dictionary with the test data as state variables.
+    """
+    # Create a Gaussian Mixture Model
+    gmm = GaussianMixture(n_components=n_components, random_state=random_state)
+    gmm.means_ = np.array([[0, 0], [1, 1], [2, 2]])
+    gmm.covariances_ = np.array([[[1, 0], [0, 1]], [[1, 0], [0, 1]], [[1, 0], [0, 1]]])
+    gmm.weights_ = np.array([0.3, 0.4, 0.3])
+    gmm.precisions_cholesky_ = np.linalg.cholesky(np.linalg.inv(gmm.covariances_))
+
+    # Generate test data
+    state = dict()
+    state['V'] = np.random.rand(2)  # sensorial vector
+    state['paradigm_activation'] = np.random.rand()  # current paradigm activation state
+    state['P_potentiality_given_form'] = np.random.normal(np.sqrt(5), 1)  # P(potentiality|form) from a Gaussian distribution
+    state['P_form_given_context'] = np.random.rand()  # P(form|context) randomly generated for now
+    state['means'] = gmm.means_
+    state['covariances'] = gmm.covariances_
+    state['weights'] = gmm.weights_
+    state['distance_cutoff'] = 2.0
+    state['weights_activation'] = np.array([0.3, 0.4, 0.3])  # weights for updating the paradigm activation state
+
+    return gmm, state
+
