@@ -59,9 +59,9 @@ class KalmanFilterCreate:
         return self.kalman_filter
 
 class ParticleFilterCreate:
-    def __init__(self, state_dim, observation_dim, num_particles, transition_fn_ns, observation_fn_ns):
+    def __init__(self, state_dim, observation_dim, num_particles, transition_fn_ns, observation_fn_ns, N=0, discount_factor=1.0):
         """
-        Creates a particle filter function that can be used within the Flo Simulation Engine.
+        Initializes the ParticleFilterCreate class.
 
         Args:
             state_dim (int): Dimension of the state vector.
@@ -69,6 +69,8 @@ class ParticleFilterCreate:
             num_particles (int): Number of particles in the filter.
             transition_fn_ns (str): Namespace for the transition function.
             observation_fn_ns (str): Namespace for the observation function.
+            N (int): Number of timesteps to predict into the future. Default is 0.
+            discount_factor (float): Time-discount factor for future predictions. Default is 1.0 (no discounting).
         """
 
         def particle_filter(state, connected_states):
@@ -104,6 +106,20 @@ class ParticleFilterCreate:
                     # Normalize weights
                     weights /= np.sum(weights)
 
+            # Future Prediction if N > 0
+            future_state = state.copy()
+            time_discounted_sum = np.zeros(state_dim)
+            discount = 1.0
+            for _ in range(N):
+                future_state = particle_filter(future_state, connected_states)
+                if future_state is None:  # Reached a final state
+                    break
+                current_estimate_future = np.average(future_state['particles'], weights=future_state['weights'], axis=0)
+                time_discounted_sum += discount * current_estimate_future
+                discount *= discount_factor
+
+            state['future_prediction'] = time_discounted_sum
+
             # Update state
             state['particles'] = particles
             state['weights'] = weights
@@ -115,4 +131,5 @@ class ParticleFilterCreate:
     def get_filter_function(self):
         """Returns the particle filter function."""
         return self.particle_filter
+
 
