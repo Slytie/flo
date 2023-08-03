@@ -1,7 +1,7 @@
 import numpy as np
 
 class KalmanFilterCreate:
-    def __init__(self, state_dim, observation_dim, A_ns, Q_ns, H_ns, R_ns):
+    def __init__(self, state_dim, observation_dim, A_ns, Q_ns, H_ns, R_ns, N=0, discount_factor=1.0):
         """
         Creates a Kalman filter function that can be used within the Flo Simulation Engine.
 
@@ -12,6 +12,8 @@ class KalmanFilterCreate:
             Q_ns (str): Namespace for the process noise covariance.
             H_ns (str): Namespace for the observation matrix.
             R_ns (str): Namespace for the measurement noise covariance.
+            N (int): Number of timesteps to predict into the future. Default is 0.
+            discount_factor (float): Time-discount factor for future predictions. Default is 1.0 (no discounting).
         """
 
         def kalman_filter(state, connected_states):
@@ -46,9 +48,23 @@ class KalmanFilterCreate:
                     updated_estimate = predicted_estimate + K @ y
                     P = (np.eye(state_dim) - K @ H) @ P
 
-                    # Update state
-                    state['current_estimate'] = updated_estimate
-                    state['P'] = P
+            # Future Prediction if N > 0
+            future_state = state.copy()
+            time_discounted_sum = np.zeros(state_dim)
+            discount = 1.0
+            for _ in range(N):
+                future_state = kalman_filter(future_state, connected_states)
+                if future_state is None:  # Reached a final state
+                    break
+                current_estimate_future = future_state['current_estimate']
+                time_discounted_sum += discount * current_estimate_future
+                discount *= discount_factor
+
+            state['future_prediction'] = time_discounted_sum
+
+            # Update state
+            state['current_estimate'] = updated_estimate
+            state['P'] = P
 
             return state
 
@@ -58,10 +74,11 @@ class KalmanFilterCreate:
         """Returns the Kalman filter function."""
         return self.kalman_filter
 
+
 class ParticleFilterCreate:
     def __init__(self, state_dim, observation_dim, num_particles, transition_fn_ns, observation_fn_ns, N=0, discount_factor=1.0):
         """
-        Initializes the ParticleFilterCreate class.
+        Creates a particle filter function that can be used within the Flo Simulation Engine.
 
         Args:
             state_dim (int): Dimension of the state vector.
@@ -131,5 +148,3 @@ class ParticleFilterCreate:
     def get_filter_function(self):
         """Returns the particle filter function."""
         return self.particle_filter
-
-
