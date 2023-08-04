@@ -135,3 +135,96 @@ When `tick` is called on an `Environment` object it goes through the following s
 6. Adds injected values into states.
 
 It's important to remember that `Probes` are called before `Injector` values are injected back into the environment. This means that state can be read by `Probes` and action taken through `Injectors`.
+
+## Function types
+### Softmax function for path choosing ie decision making
+In our simulation, we use a customized softmax function to represent the decision-making process of choosing a path. Each element in the state vector represents a decision or path, identified by a path_ID. The state vector is transformed into a decision probability vector by applying our softmax function. The probability associated with each decision or path is used to determine the path to take.
+
+Here is the updated softmax_function pulling epsilon, w, w0, D, and S from the state namespace:
+```python
+def softmax_function(state, connected_states):
+    # Retrieve the path_IDs
+    path_IDs = state.get('path_IDs')
+
+    # Retrieve the additional state variables
+    epsilon = state.get('global.epsilon')  # The global energy of the agent
+    w0 = state.get('global.w0')  # The total work difference required for the current path and not changing path.
+    D = state.get('global.D')  # The global suffering of the agent
+    S = state.get('global.S')  # The global satisfaction of the agent
+
+    # For each path_ID, retrieve its attributes, combine them, and put them into the state vector
+    state_vector = []
+    for path_ID in path_IDs:
+        attributes = state.get_connected_states('paradigm_ID.' + str(path_ID))
+        w = state.get('path.' + str(path_ID) + '.w')  # The total work required for the specific path
+
+        # Calculate F, G, H, L
+        F = sum([f(a_j, beta_j, D) for a_j, beta_j in attributes])  # The total change in beliefs resulting in a decrease in suffering for the different paradigms. beta_j is the change in beliefs for the jth paradigm. a_j is the paradigm activation level for the jth paradigm.
+        G = sum([g(a_j, beta_j, S) for a_j, beta_j in attributes])  # The total change in beliefs resulting in an increase in satisfaction for the different paradigms 
+        H = sum([h(a_j, beta_j, D) for a_j, beta_j in attributes])  # The total change in beliefs resulting in an increase in suffering for the different paradigms 
+        L = sum([l(a_j, beta_j, S) for a_j, beta_j in attributes])  # The total change in beliefs resulting in a decrease in satisfaction for the different paradigms. 
+        
+        # Calculate d_+ and d_-
+        d_plus = F+G  # Desire to have the positive consequences, ie decrease in suffering and increase in satisfaction
+        d_minus = H+L  # Desire not to have the negative consequences, ie increase in suffering, decrease in satisfaction
+        
+        # Calculate s_i
+        s_i = epsilon / (w + w0) * (d_plus - d_minus)  # Energy divided by work multiplied by the difference in desire and aversion of the choice
+        
+        state_vector.append(s_i)
+
+    # Convert the state vector to a numpy array
+    state_vector = np.array(state_vector)
+
+    # Apply the softmax function
+    softmax_vector = np.exp(state_vector) / np.sum(np.exp(state_vector))
+
+    # Update the state
+    state.set('state_vector', softmax_vector.tolist())
+```
+```python
+def f(a_j, beta_j, D):
+    # Placeholder function, should be  f(\cdot )>0. Change in belief resulting in a decrease in suffering
+    x=a_j + beta_j + D
+    return np.exp(x) - 1
+
+def g(a_j, beta_j, S):
+    # Placeholder function, should be g(\cdot )>0. Change in belief resulting in an increase in satisfaction
+    x=a_j + beta_j + S
+    return  1 / (np.exp(x) - 1)
+
+def h(a_j, beta_j, D):
+    # Placeholder function, should be h(\cdot )>0.  Change in belief resulting in an increase in suffering
+    x=a_j + beta_j + D
+    return np.exp(x) - 1
+
+def l(a_j, beta_j, S):
+    # Placeholder function, should be l(\cdot )>0. Change in belief resulting in an increase in satisfaction
+    x=a_j + beta_j + S
+    return  1 / (np.exp(x) - 1)
+```
+
+### Bayesian associative perception
+
+The simulation environment includes various namespaces, state nodes, functions, probes, and injectors to simulate a dynamic system. 
+
+One of the functions, `func_bayesian_probability_batch`, calculates the Bayesian probabilities for a batch of sensorial vectors V and classifies them based on the form with the highest Bayesian probability.
+
+This function is added to the environment as follows:
+
+```python
+# Add the function to the environment
+sBayesian = e.add_function(bayesian_associative_perception, 'statistics.bayesian', ['statistics.paradigm_activation', 'statistics.potentiality_given_form', 'statistics.form_given_context', 'statistics.means', 'statistics.covariances', 'statistics.weights', 'statistics.distance_cutoff', 'statistics.weights_activation'])
+
+# Initialize the state values
+sBayesian.set('V', [np.random.rand(10) for _ in range(100)])  # 100 sensorial vectors
+sBayesian.set('paradigm_activation', np.random.rand(10))  # paradigm activation states for each form
+sBayesian.set('P_potentiality_given_form', [np.random.normal(np.sqrt(5), 1) for _ in range(10)])  # P(potentiality|form) for each form
+sBayesian.set('P_form_given_context', np.random.rand(10))  # P(form|context) for each form
+sBayesian.set('means', np.random.rand(10, 10))  # means of the GMM
+sBayesian.set('covariances', np.array([np.eye(10) for _ in range(10)]))  # covariances of the GMM
+sBayesian.set('weights', np.ones(10) / 10)  # weights of the GMM
+sBayesian.set('distance_cutoff', 2.0)  # distance cutoff
+sBayesian.set('weights_activation', np.array([0.3, 0.4, 0.3]))  # weights for updating the paradigm activation state
+```
+
